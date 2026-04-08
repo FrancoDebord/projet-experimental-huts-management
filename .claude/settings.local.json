@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mysql -u root crec_rh_system_db -e \"SHOW TABLES;\")",
+      "Bash(mysql -u root -e \"USE crec_rh_system_db; SHOW TABLES;\")",
+      "Bash(php -l app/Http/Controllers/DashboardController.php)",
+      "Bash(php -l app/Http/Controllers/HutController.php)",
+      "Bash(php -l app/Http/Controllers/SiteController.php)",
+      "Bash(php -l app/Models/Hut.php)",
+      "Bash(php -l app/Models/ProProject.php)",
+      "Read(//c/Users/fhoueha/.claude/projects/e--Projets-CREC-projet-experimental-huts/memory/**)"
+    ]
+  }
+}
