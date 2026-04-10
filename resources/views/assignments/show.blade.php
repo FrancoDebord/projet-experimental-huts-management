@@ -25,8 +25,13 @@
       </span>
     </div>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap">
     @if(!in_array($assignment->current_status, ['completed','cancelled']))
+    {{-- Modifier --}}
+    <a href="{{ url('/assignments/'.$assignment->id.'/edit') }}" class="btn btn-outline-primary btn-sm">
+      <i class="fa-solid fa-pen me-1"></i>Modifier
+    </a>
+    {{-- Terminer --}}
     <form action="{{ route('assignments.complete', $assignment) }}" method="POST">
       @csrf @method('PATCH')
       <button class="btn btn-success btn-sm" onclick="return confirm('Marquer cette activité comme terminée ?')">
@@ -34,12 +39,32 @@
       </button>
     </form>
     @endif
+    {{-- Annuler (soft delete) --}}
+    @if(!$assignment->trashed())
     <form action="{{ route('assignments.destroy', $assignment) }}" method="POST">
       @csrf @method('DELETE')
-      <button class="btn btn-outline-danger btn-sm" onclick="return confirm('Annuler cette session ?')">
+      <button class="btn btn-outline-danger btn-sm" onclick="return confirm('Annuler cette session ? Elle sera restaurable.')">
         <i class="fa-solid fa-xmark me-1"></i>Annuler
       </button>
     </form>
+    @endif
+    {{-- Restaurer / Supprimer définitivement (admin) --}}
+    @if(in_array(auth()->user()->role, ['super_admin','facility_manager']))
+      @if($assignment->trashed())
+      <form action="{{ url('/assignments/'.$assignment->id.'/restore') }}" method="POST">
+        @csrf
+        <button class="btn btn-warning btn-sm" onclick="return confirm('Restaurer cette session ?')">
+          <i class="fa-solid fa-rotate-left me-1"></i>Restaurer
+        </button>
+      </form>
+      @endif
+      <form action="{{ url('/assignments/'.$assignment->id.'/force-delete') }}" method="POST">
+        @csrf
+        <button class="btn btn-danger btn-sm" onclick="return confirm('Supprimer DÉFINITIVEMENT cette session ? Action irréversible.')">
+          <i class="fa-solid fa-trash me-1"></i>Supprimer
+        </button>
+      </form>
+    @endif
   </div>
 </div>
 
@@ -153,11 +178,23 @@
         @forelse($assignment->dailyObservations as $obs)
         <div class="card mb-2">
           <div class="card-body py-2">
-            <div class="d-flex justify-content-between">
-              <span class="fw-semibold small">{{ $obs->observation_date->format('d/m/Y') }}
-                @if($obs->hut) — Case {{ $obs->hut->number }} @endif
-              </span>
-              <small class="text-muted">{{ $obs->observer?->name ?? '—' }}</small>
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <span class="fw-semibold small">{{ $obs->observation_date->format('d/m/Y') }}
+                  @if($obs->hut) — Case {{ $obs->hut->number }} @endif
+                </span>
+                <small class="text-muted ms-2">{{ $obs->observer?->name ?? '—' }}</small>
+              </div>
+              {{-- Supprimer observation : auteur ou admin --}}
+              @if($obs->observed_by === auth()->id() || in_array(auth()->user()->role, ['super_admin','facility_manager']))
+              <form action="{{ url('/assignments/'.$assignment->id.'/observations/'.$obs->id) }}" method="POST">
+                @csrf @method('DELETE')
+                <button class="btn btn-link btn-sm text-danger p-0 ms-2" title="Supprimer"
+                        onclick="return confirm('Supprimer cette observation ?')">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </form>
+              @endif
             </div>
             <p class="mb-0 mt-1 small">{{ $obs->observation }}</p>
           </div>

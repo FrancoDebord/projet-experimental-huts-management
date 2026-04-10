@@ -8,7 +8,15 @@
       "Bash(php -l app/Http/Controllers/SiteController.php)",
       "Bash(php -l app/Models/Hut.php)",
       "Bash(php -l app/Models/ProProject.php)",
-      "Read(//c/Users/fhoueha/.claude/projects/e--Projets-CREC-projet-experimental-huts/memory/**)"
+      "Read(//c/Users/fhoueha/.claude/projects/e--Projets-CREC-projet-experimental-huts/memory/**)",
+      "Bash(php artisan:*)",
+      "Bash(php -l routes/web.php)",
+      "Bash(find . -name \"web.php\" -not -path \"*/vendor/*\")",
+      "Bash(php -r \"echo php_ini_loaded_file\\(\\);\")",
+      "Bash(sed -i 's|route\\('\\\\''assignments.edit'\\\\'', $session\\)|url\\('\\\\''/assignments/'\\\\''.$session->id.'\\\\''/edit'\\\\''\\)|g' resources/views/projects/show.blade.php)",
+      "Bash(sed -i 's|route\\('\\\\''assignments.edit'\\\\'', $assignment\\)|url\\('\\\\''/assignments/'\\\\''.$assignment->id.'\\\\''/edit'\\\\''\\)|g' resources/views/assignments/show.blade.php)",
+      "Bash(sed -i -e 's|route\\('\\\\''assignments\\\\.update'\\\\'', $assignment\\)|url\\('\\\\''/assignments/'\\\\''.$assignment->id\\)|g' -e 's|route\\('\\\\''assignments\\\\.restore'\\\\'', $assignment->id\\)|url\\('\\\\''/assignments/'\\\\''.$assignment->id.'\\\\''/restore'\\\\''\\)|g' -e 's|route\\('\\\\''assignments\\\\.force-delete'\\\\'', $assignment->id\\)|url\\('\\\\''/assignments/'\\\\''.$assignment->id.'\\\\''/force-delete'\\\\''\\)|g' -e 's|route\\('\\\\''assignments\\\\.observations\\\\.destroy'\\\\'', \\\\[$assignment, $obs\\\\]\\)|url\\('\\\\''/assignments/'\\\\''.$assignment->id.'\\\\''/observations/'\\\\''.$obs->id\\)|g' resources/views/assignments/edit.blade.php resources/views/assignments/show.blade.php)",
+      "Bash(sed -i -e 's|route\\('\\\\''assignments\\\\.restore'\\\\'', $session->id\\)|url\\('\\\\''/assignments/'\\\\''.$session->id.'\\\\''/restore'\\\\''\\)|g' -e 's|route\\('\\\\''assignments\\\\.force-delete'\\\\'', $session->id\\)|url\\('\\\\''/assignments/'\\\\''.$session->id.'\\\\''/force-delete'\\\\''\\)|g' resources/views/projects/show.blade.php)"
     ]
   }
 }

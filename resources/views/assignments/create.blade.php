@@ -389,19 +389,34 @@ function formatDate(d) {
 // ── Step 3: Matrix generation ───────────────────────────────────────────────
 function generateMatrix() {
   const container = document.getElementById('matrixContainer');
-  if (!selectedHuts.length || !selectedDates.length) {
-    container.innerHTML = '<div class="alert alert-warning">Sélectionnez des cases et une période d\'abord.</div>';
-    return;
-  }
 
-  // Get selected hut info from DOM
+  // Lire les cases directement depuis le DOM (source de vérité)
   const huts = [];
   document.querySelectorAll('.hut-selector.selected').forEach(el => {
     huts.push({
-      id: el.querySelector('.hut-check').value,
+      id:    el.querySelector('.hut-check').value,
       label: el.querySelector('.hut-num').textContent.trim()
     });
   });
+
+  // Lire les dates directement depuis les inputs (source de vérité)
+  const s = document.getElementById('dateStart').value;
+  const e = document.getElementById('dateEnd').value;
+  const dates = [];
+  if (s && e && s <= e) {
+    for (let d = new Date(s + 'T00:00:00'); d <= new Date(e + 'T00:00:00'); d.setDate(d.getDate() + 1)) {
+      dates.push(d.toISOString().split('T')[0]);
+    }
+  }
+
+  // Mettre à jour les caches globaux
+  selectedHuts  = huts;
+  selectedDates = dates;
+
+  if (!huts.length || !dates.length) {
+    container.innerHTML = '<div class="alert alert-warning">Sélectionnez des cases et une période d\'abord.</div>';
+    return;
+  }
 
   let html = `<table class="table table-bordered table-sm matrix-table">
   <thead>
@@ -412,13 +427,13 @@ function generateMatrix() {
   });
   html += `</tr></thead><tbody>`;
 
-  selectedDates.forEach((date, di) => {
+  dates.forEach((date, di) => {
     html += `<tr>
       <td class="date-col" style="background:#1A1A1A;color:#fff">${formatDate(date)}</td>`;
-    huts.forEach(h => {
+    huts.forEach((h, hi) => {
       html += `<td class="hut-col">
         <select name="sleepers[${date}][${h.id}]" class="form-select form-select-sm sleeper-select"
-                data-date="${date}" data-hut="${h.id}" data-di="${di}" data-hi="${huts.indexOf(h)}">
+                data-date="${date}" data-hut="${h.id}" data-di="${di}" data-hi="${hi}">
           <option value="">—</option>`;
       sleepersData.forEach(s => {
         html += `<option value="${s.id}">${s.code} – ${s.name}</option>`;
@@ -430,7 +445,6 @@ function generateMatrix() {
   html += '</tbody></table>';
 
   container.innerHTML = html;
-  document.getElementById('matrixPlaceholder')?.remove();
 }
 
 // ── Auto-rotation algorithm ─────────────────────────────────────────────────
@@ -457,6 +471,11 @@ function submitForm(withSleepers) {
   }
   document.getElementById('wizardForm').submit();
 }
+
+// ── Hut card click handler ──────────────────────────────────────────────────
+document.querySelectorAll('.hut-selector:not(.unavailable)').forEach(el => {
+  el.addEventListener('click', () => toggleHut(el));
+});
 
 // Init Select2
 $(document).ready(function() {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DailyObservation;
 use App\Models\Hut;
 use App\Models\Site;
 use App\Models\ProProject;
@@ -182,11 +183,60 @@ class AssignmentController extends Controller
         return back()->with('success', 'Activité marquée comme terminée. Notifications envoyées.');
     }
 
+    /** GET /assignments/{session}/edit */
+    public function edit(UsageSession $assignment)
+    {
+        $assignment->load(['project', 'projectUsages.hut.site']);
+        $sites = Site::where('status', 'active')->with('huts')->orderBy('name')->get();
+        return view('assignments.edit', compact('assignment', 'sites'));
+    }
+
+    /** PATCH /assignments/{session} */
+    public function update(Request $request, UsageSession $assignment)
+    {
+        $validated = $request->validate([
+            'phase_name' => 'nullable|string|max:255',
+            'date_start' => 'required|date',
+            'date_end'   => 'required|date|after_or_equal:date_start',
+            'notes'      => 'nullable|string',
+        ]);
+
+        $assignment->update($validated);
+
+        // Re-sync ProjectUsage dates
+        $assignment->projectUsages()->update([
+            'phase_name' => $validated['phase_name'] ?? null,
+            'date_start' => $validated['date_start'],
+            'date_end'   => $validated['date_end'],
+            'notes'      => $validated['notes'] ?? null,
+        ]);
+
+        return redirect()->route('assignments.show', $assignment)
+            ->with('success', 'Session mise à jour.');
+    }
+
     /** DELETE /assignments/{session} — soft delete */
     public function destroy(UsageSession $assignment)
     {
         $assignment->delete();
-        return back()->with('success', 'Session annulée (restaurable par admin).');
+        return redirect()->route('projects.show', $assignment->project_id)
+            ->with('success', 'Session annulée (restaurable par admin).');
+    }
+
+    /** POST /assignments/{id}/force-delete — hard delete (admin only) */
+    public function forceDestroy(int $id)
+    {
+        $this->authorizeAdminOrFacility();
+        UsageSession::withTrashed()->findOrFail($id)->forceDelete();
+        return back()->with('success', 'Session supprimée définitivement.');
+    }
+
+    /** POST /assignments/{id}/restore */
+    public function restore(int $id)
+    {
+        $this->authorizeAdminOrFacility();
+        UsageSession::withTrashed()->findOrFail($id)->restore();
+        return back()->with('success', 'Session restaurée.');
     }
 
     /** POST /assignments/{session}/observations */
@@ -204,6 +254,17 @@ class AssignmentController extends Controller
         \App\Models\DailyObservation::create($validated);
 
         return back()->with('success', 'Observation enregistrée.');
+    }
+
+    /** DELETE /assignments/{session}/observations/{observation} */
+    public function destroyObservation(UsageSession $assignment, DailyObservation $observation)
+    {
+        // Only the observer, or admin/facility manager can delete
+        if ($observation->observed_by !== Auth::id()) {
+            $this->authorizeAdminOrFacility();
+        }
+        $observation->delete();
+        return back()->with('success', 'Observation supprimée.');
     }
 
     /** POST /assignments/{session}/sleepers — update sleeper matrix */
@@ -234,5 +295,12 @@ class AssignmentController extends Controller
         });
 
         return back()->with('success', 'Planning des dormeurs mis à jour.');
+    }
+
+    private function authorizeAdminOrFacility(): void
+    {
+        if (!in_array(Auth::user()->role, ['super_admin', 'facility_manager'])) {
+            abort(403, 'Action réservée aux administrateurs.');
+        }
     }
 }

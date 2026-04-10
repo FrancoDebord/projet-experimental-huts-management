@@ -53,13 +53,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/projects/{project}',[ProjectController::class, 'show'])->name('projects.show');
 
     // ── Assignment Wizard ───────────────────────────────────────────────────
-    Route::get ('/assignments/create',                [AssignmentController::class, 'create'])->name('assignments.create');
-    Route::post('/assignments',                       [AssignmentController::class, 'store'])->name('assignments.store');
-    Route::get ('/assignments/{assignment}',          [AssignmentController::class, 'show'])->name('assignments.show');
-    Route::patch('/assignments/{assignment}/complete',[AssignmentController::class, 'complete'])->name('assignments.complete');
-    Route::delete('/assignments/{assignment}',        [AssignmentController::class, 'destroy'])->name('assignments.destroy');
-    Route::post('/assignments/{assignment}/observations', [AssignmentController::class, 'addObservation'])->name('assignments.observations');
-    Route::post('/assignments/{assignment}/sleepers',     [AssignmentController::class, 'updateSleepers'])->name('assignments.sleepers');
+    Route::get   ('/assignments/create',                    [AssignmentController::class, 'create'])->name('assignments.create');
+    Route::post  ('/assignments',                           [AssignmentController::class, 'store'])->name('assignments.store');
+    Route::get   ('/assignments/{assignment}',              [AssignmentController::class, 'show'])->name('assignments.show');
+    Route::get   ('/assignments/{assignment}/edit',         [AssignmentController::class, 'edit'])->name('assignments.edit');
+    Route::patch ('/assignments/{assignment}',              [AssignmentController::class, 'update'])->name('assignments.update');
+    Route::patch ('/assignments/{assignment}/complete',     [AssignmentController::class, 'complete'])->name('assignments.complete');
+    Route::delete('/assignments/{assignment}',              [AssignmentController::class, 'destroy'])->name('assignments.destroy');
+    Route::post  ('/assignments/{id}/force-delete',         [AssignmentController::class, 'forceDestroy'])->name('assignments.force-delete');
+    Route::post  ('/assignments/{id}/restore',              [AssignmentController::class, 'restore'])->name('assignments.restore');
+    Route::post  ('/assignments/{assignment}/observations', [AssignmentController::class, 'addObservation'])->name('assignments.observations');
+    Route::delete('/assignments/{assignment}/observations/{observation}', [AssignmentController::class, 'destroyObservation'])->name('assignments.observations.destroy');
+    Route::post  ('/assignments/{assignment}/sleepers',     [AssignmentController::class, 'updateSleepers'])->name('assignments.sleepers');
 
     // ── Sleepers ────────────────────────────────────────────────────────────
     Route::resource('sleepers', SleeperController::class)->except(['show']);

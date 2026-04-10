@@ -3,23 +3,31 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // ── Sites (3 sites réels) ──────────────────────────────────────────────
+        $this->call(SiteSeeder::class);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // ── Cases (Site 2 → 38, Site 3 → 48) ────────────────────────────────
+        $this->call(HutSeeder::class);
+
+        // ── Utilisateur Super Admin par défaut ───────────────────────────────
+        User::firstOrCreate(
+            ['email' => 'admin@airid.org'],
+            [
+                'nom'      => 'Admin',
+                'prenom'   => 'Super',
+                'password' => Hash::make('password'),
+                'role'     => 'super_admin',
+                'active'   => true,
+            ]
+        );
+
+        $this->command->info('DatabaseSeeder terminé.');
     }
 }

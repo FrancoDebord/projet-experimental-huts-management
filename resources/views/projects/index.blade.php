@@ -15,18 +15,21 @@
                placeholder="Rechercher par code ou titre…" value="{{ request('search') }}">
       </div>
       <div class="col-md-3">
+        @php $currentStage = request('stage', 'in progress'); @endphp
         <select name="stage" class="form-select form-select-sm">
-          <option value="">Tous les stades</option>
-          <option value="not_started" {{ request('stage')==='not_started'?'selected':'' }}>Non démarré</option>
-          <option value="in progress" {{ request('stage')==='in progress'?'selected':'' }}>En cours</option>
-          <option value="suspended"   {{ request('stage')==='suspended'?'selected':'' }}>Suspendu</option>
-          <option value="completed"   {{ request('stage')==='completed'?'selected':'' }}>Terminé</option>
-          <option value="archived"    {{ request('stage')==='archived'?'selected':'' }}>Archivé</option>
+          <option value="all"        {{ $currentStage==='all'        ?'selected':'' }}>Tous les stades</option>
+          <option value="in progress"{{ $currentStage==='in progress'?'selected':'' }}>En cours</option>
+          <option value="not_started"{{ $currentStage==='not_started'?'selected':'' }}>Non démarré</option>
+          <option value="suspended"  {{ $currentStage==='suspended'  ?'selected':'' }}>Suspendu</option>
+          <option value="completed"  {{ $currentStage==='completed'  ?'selected':'' }}>Terminé</option>
+          <option value="archived"   {{ $currentStage==='archived'   ?'selected':'' }}>Archivé</option>
         </select>
       </div>
       <div class="col-auto">
         <button type="submit" class="btn btn-sm btn-primary">Filtrer</button>
-        <a href="{{ route('projects.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        <a href="{{ route('projects.index') }}" class="btn btn-sm btn-outline-secondary">
+          <i class="fa-solid fa-rotate-left me-1"></i>Réinitialiser
+        </a>
       </div>
     </form>
   </div>
