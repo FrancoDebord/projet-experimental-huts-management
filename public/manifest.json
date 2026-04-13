@@ -1,23 +1,32 @@
 {
   "name": "AIRID Huts Manager",
-  "short_name": "Huts AIRID",
+  "short_name": "AIRID Huts",
   "description": "Gestion des cases expérimentales AIRID",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#1A1A1A",
   "theme_color": "#CC0000",
   "orientation": "any",
+  "lang": "fr",
   "icons": [
     {
-      "src": "/storage/logo/airid.png",
+      "src": "/storage/assets/logo/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/storage/logo/airid.png",
+      "src": "/storage/assets/logo/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/storage/assets/logo/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["productivity", "utilities"],

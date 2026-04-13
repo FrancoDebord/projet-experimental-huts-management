@@ -46,7 +46,7 @@ class UsageSession extends Model
     {
         return $this->hasMany(SleeperAssignment::class, 'session_id');
     }
-
+ 
     public function dailyObservations()
     {
         return $this->hasMany(DailyObservation::class, 'session_id')->orderBy('observation_date');

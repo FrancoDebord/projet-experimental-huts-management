@@ -6,10 +6,17 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title', 'AIRID Huts Manager') — {{ config('app.name') }}</title>
 
+<!-- Favicon & icônes -->
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+<link rel="icon" href="/storage/assets/logo/airid.jpeg" type="image/jpeg">
+<link rel="apple-touch-icon" sizes="192x192" href="/storage/assets/logo/icon-192.png">
 <!-- PWA -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#CC0000">
-<link rel="apple-touch-icon" href="/storage/logo/airid.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AIRID Huts">
 
 <!-- Bootstrap 5 -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -33,7 +40,7 @@
 <!-- ========== SIDEBAR ========== -->
 <nav id="sidebar">
   <div class="sidebar-brand">
-    <img src="/storage/logo/airid.png" alt="AIRID">
+    <img src="/storage/assets/logo/airid.jpeg" alt="AIRID">
     <h6>Cases Expérimentales</h6>
   </div>
 
@@ -217,9 +224,9 @@ document.getElementById('sidebar-overlay')?.addEventListener('click', function()
   this.classList.remove('show');
 });
 
-// Auto-dismiss alerts after 5s
+// Auto-dismiss alerts after 5s (sauf les alertes marquées alert-persistent)
 setTimeout(() => {
-  document.querySelectorAll('.alert').forEach(el => {
+  document.querySelectorAll('.alert:not(.alert-persistent)').forEach(el => {
     const bsAlert = bootstrap.Alert.getOrCreateInstance(el);
     bsAlert.close();
   });

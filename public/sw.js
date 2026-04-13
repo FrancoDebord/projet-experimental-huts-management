@@ -1,7 +1,10 @@
-const CACHE_NAME = 'airid-huts-v1';
+const CACHE_NAME = 'airid-huts-v2';
 const STATIC_ASSETS = [
   '/css/airid.css',
-  '/storage/logo/airid.png',
+  '/favicon.png',
+  '/storage/assets/logo/airid.jpeg',
+  '/storage/assets/logo/icon-192.png',
+  '/storage/assets/logo/icon-512.png',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css',
 ];

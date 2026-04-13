@@ -26,21 +26,15 @@
     </div>
   </div>
   <div class="d-flex gap-2 flex-wrap">
-    @if(!in_array($assignment->current_status, ['completed','cancelled']))
+    {{-- Utiliser $assignment->status (champ DB) et non current_status (calculé) --}}
+    @if(!in_array($assignment->status, ['completed','cancelled']))
     {{-- Modifier --}}
     <a href="{{ url('/assignments/'.$assignment->id.'/edit') }}" class="btn btn-outline-primary btn-sm">
       <i class="fa-solid fa-pen me-1"></i>Modifier
     </a>
-    {{-- Terminer --}}
-    <form action="{{ route('assignments.complete', $assignment) }}" method="POST">
-      @csrf @method('PATCH')
-      <button class="btn btn-success btn-sm" onclick="return confirm('Marquer cette activité comme terminée ?')">
-        <i class="fa-solid fa-flag-checkered me-1"></i>Terminer
-      </button>
-    </form>
     @endif
-    {{-- Annuler (soft delete) --}}
-    @if(!$assignment->trashed())
+    {{-- Annuler (soft delete) : restreint au super_admin si la date est passée --}}
+    @if(!$assignment->trashed() && (!$assignment->date_end->isPast() || auth()->user()->role === 'super_admin'))
     <form action="{{ route('assignments.destroy', $assignment) }}" method="POST">
       @csrf @method('DELETE')
       <button class="btn btn-outline-danger btn-sm" onclick="return confirm('Annuler cette session ? Elle sera restaurable.')">
@@ -48,8 +42,8 @@
       </button>
     </form>
     @endif
-    {{-- Restaurer / Supprimer définitivement (admin) --}}
-    @if(in_array(auth()->user()->role, ['super_admin','facility_manager']))
+    {{-- Restaurer / Supprimer définitivement (super_admin uniquement) --}}
+    @if(auth()->user()->role === 'super_admin')
       @if($assignment->trashed())
       <form action="{{ url('/assignments/'.$assignment->id.'/restore') }}" method="POST">
         @csrf
@@ -67,6 +61,32 @@
     @endif
   </div>
 </div>
+
+{{-- Bouton libération cases : visible dès que la date est passée et session non annulée --}}
+@if($assignment->date_end->isPast() && $assignment->status !== 'cancelled')
+@php $hasInUse = $huts->contains(fn($h) => $h->status === 'in_use'); @endphp
+<div class="alert alert-persistent {{ $hasInUse || $assignment->status !== 'completed' ? 'alert-warning' : 'alert-success' }} d-flex align-items-center gap-3 mb-3">
+  <i class="fa-solid fa-{{ $hasInUse || $assignment->status !== 'completed' ? 'triangle-exclamation' : 'circle-check' }} fa-2x flex-shrink-0"></i>
+  <div class="flex-grow-1">
+    @if($hasInUse || $assignment->status !== 'completed')
+      <strong>Date de fin dépassée — cases non encore libérées.</strong><br>
+      <small>Cliquez sur le bouton pour terminer la session et remettre les {{ $huts->count() }} case(s) à « Disponible ».</small>
+    @else
+      <strong>Session terminée.</strong>
+      <small class="ms-1">Les {{ $huts->count() }} case(s) ont été remises à « Disponible ».</small>
+    @endif
+  </div>
+  @if($hasInUse || $assignment->status !== 'completed')
+  <form action="{{ route('assignments.complete', $assignment) }}" method="POST" class="flex-shrink-0">
+    @csrf @method('PATCH')
+    <button class="btn btn-warning fw-semibold"
+            onclick="return confirm('Terminer la session et libérer les {{ $huts->count() }} case(s) ?')">
+      <i class="fa-solid fa-flag-checkered me-1"></i>Terminer &amp; libérer les cases
+    </button>
+  </form>
+  @endif
+</div>
+@endif
 
 {{-- Progress bar --}}
 <div class="card mb-3">
@@ -147,7 +167,7 @@
               <td class="date-sticky fw-semibold">{{ \Carbon\Carbon::parse($date)->format('d/m') }}</td>
               @foreach($huts as $hut)
               @php
-                $assigned = $assignments[$date]?->firstWhere('hut_id', $hut->id);
+                $assigned = $assignments->get($date)?->firstWhere('hut_id', $hut->id);
               @endphp
               <td>
                 <select name="sleepers[{{ $date }}][{{ $hut->id }}]"
@@ -252,6 +272,13 @@ function autoFill() {
     const idx = (di + hi) % sleepersData.length;
     sel.value = sleepersData[idx].id;
   });
+}
+
+function confirmComplete(btn) {
+  const count = {{ $huts->count() }};
+  if (confirm(`Marquer cette session comme terminée ?\n\n${count} case(s) seront remises à « Disponible » et pourront être réaffectées.`)) {
+    btn.closest('form').submit();
+  }
 }
 </script>
 @endpush

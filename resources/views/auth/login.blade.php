@@ -4,8 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Connexion — AIRID Huts Manager</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+<link rel="icon" href="/storage/assets/logo/airid.jpeg" type="image/jpeg">
+<link rel="apple-touch-icon" sizes="192x192" href="/storage/assets/logo/icon-192.png">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#CC0000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AIRID Huts">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 <link href="/css/airid.css" rel="stylesheet">
@@ -15,7 +21,7 @@
 <div class="login-wrapper">
   <div class="login-card">
     <div class="text-center mb-4">
-      <img src="/storage/logo/airid.png" alt="AIRID" class="login-logo">
+      <img src="/storage/assets/logo/airid.jpeg" alt="AIRID" class="login-logo">
       <h4 class="mt-2">Cases Expérimentales</h4>
       <p class="subtitle">Connectez-vous à votre compte</p>
     </div>
@@ -64,7 +70,7 @@
 
     <div class="text-center mt-4">
       <small class="text-muted">
-        <img src="/storage/logo/airid.png" alt="" height="16" class="me-1">
+        <img src="/storage/assets/logo/airid.jpeg" alt="" height="16" class="me-1">
         African Institute for Research in Infectious Diseases
       </small>
     </div>

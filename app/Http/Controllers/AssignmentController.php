@@ -33,7 +33,18 @@ class AssignmentController extends Controller
                 ->with('error', "Impossible d'affecter des cases : le projet est « {$project->stage_label} ».");
         }
 
-        $sites    = Site::where('status', 'active')->with('huts')->orderBy('name')->get();
+        $today = today()->toDateString();
+        $sites = Site::where('status', 'active')
+            ->with(['huts' => function ($q) use ($today) {
+                // Pré-charge l'occupation courante de chaque case (évite N+1)
+                $q->with(['projectUsages' => function ($q2) use ($today) {
+                    $q2->where('date_start', '<=', $today)
+                       ->where('date_end', '>=', $today)
+                       ->with('project:id,project_code');
+                }]);
+            }])
+            ->orderBy('name')
+            ->get();
         $projects = ProProject::where('project_stage', 'in progress')->orderBy('project_code')->get(['id', 'project_code', 'project_title']);
         $sleepers = Sleeper::active()->orderBy('code')->get();
 
@@ -155,32 +166,50 @@ class AssignmentController extends Controller
     /** PATCH /assignments/{session}/complete */
     public function complete(UsageSession $assignment)
     {
+        $assignment->load(['projectUsages.hut', 'project']);
+        $wasAlreadyCompleted = $assignment->status === 'completed';
         $assignment->update(['status' => 'completed']);
-        NotificationService::notifyActivityEnd($assignment);
+        if (!$wasAlreadyCompleted) {
+            NotificationService::notifyActivityEnd($assignment);
+        }
 
-        // Update huts status back to available if no other active usage
+        $today = now()->toDateString();
+        $freed = 0;
+
         foreach ($assignment->projectUsages as $usage) {
             $hut = $usage->hut;
+            if (!$hut) continue;
+
+            // Skip permanently unusable huts
+            if (in_array($hut->status, ['damaged', 'abandoned'])) continue;
+
+            // Check if another DIFFERENT active session is still using this hut
             $hasOtherActive = ProjectUsage::where('hut_id', $hut->id)
                 ->where('id', '!=', $usage->id)
-                ->where('date_start', '<=', now()->toDateString())
-                ->where('date_end',   '>=', now()->toDateString())
+                ->where('date_start', '<=', $today)
+                ->where('date_end',   '>=', $today)
                 ->exists();
 
-            if (!$hasOtherActive && $hut->status === 'in_use') {
+            if (!$hasOtherActive && $hut->status !== 'available') {
                 StateChange::create([
                     'hut_id'          => $hut->id,
-                    'previous_status' => 'in_use',
+                    'previous_status' => $hut->status,
                     'new_status'      => 'available',
                     'reason'          => "Fin d'activité — {$assignment->project->project_code}",
                     'changed_by'      => Auth::id(),
                     'changed_at'      => now(),
                 ]);
                 $hut->update(['status' => 'available']);
+                $freed++;
             }
         }
 
-        return back()->with('success', 'Activité marquée comme terminée. Notifications envoyées.');
+        $msg = 'Session marquée comme terminée.';
+        if ($freed > 0) {
+            $msg .= " {$freed} case(s) remise(s) à « Disponible ».";
+        }
+
+        return back()->with('success', $msg);
     }
 
     /** GET /assignments/{session}/edit */

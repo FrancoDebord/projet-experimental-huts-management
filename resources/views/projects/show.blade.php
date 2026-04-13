@@ -307,11 +307,33 @@
     <div class="card-body p-0">
 
       {{-- Actions --}}
-      <div class="d-flex gap-2 flex-wrap px-3 py-2 border-bottom bg-light">
+      <div class="px-3 py-2 border-bottom bg-light">
+        {{-- Bouton libération : visible dès que date_end est passée et session non annulée --}}
+        @if(!$session->trashed() && $session->date_end->isPast() && $session->status !== 'cancelled')
+        @php $sessHasInUse = $sessionHuts->contains(fn($h) => $h->status === 'in_use'); @endphp
+        @if($sessHasInUse || $session->status !== 'completed')
+        <div class="alert alert-persistent alert-warning d-flex align-items-center gap-2 py-2 mb-2">
+          <i class="fa-solid fa-triangle-exclamation flex-shrink-0"></i>
+          <div class="flex-grow-1 small">
+            <strong>Date de fin dépassée.</strong>
+            Les cases sont toujours bloquées — libérez-les pour les rendre disponibles.
+          </div>
+          <form action="{{ route('assignments.complete', $session) }}" method="POST" class="flex-shrink-0">
+            @csrf @method('PATCH')
+            <button class="btn btn-warning btn-sm fw-semibold"
+                    onclick="return confirm('Terminer la session et libérer les cases ?')">
+              <i class="fa-solid fa-flag-checkered me-1"></i>Terminer &amp; libérer les cases
+            </button>
+          </form>
+        </div>
+        @endif
+        @endif
+
+        <div class="d-flex gap-2 flex-wrap">
         <a href="{{ route('assignments.show', $session) }}" class="btn btn-xs btn-outline-primary btn-sm">
           <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Voir la session complète
         </a>
-        @if(!$session->trashed() && !in_array($session->current_status, ['completed','cancelled']))
+        @if(!$session->trashed() && !in_array($session->status, ['completed','cancelled']) && !$session->date_end->isPast())
         <a href="{{ url('/assignments/'.$session->id.'/edit') }}" class="btn btn-xs btn-outline-secondary btn-sm">
           <i class="fa-solid fa-pen me-1"></i>Modifier
         </a>
@@ -322,7 +344,8 @@
           </button>
         </form>
         @endif
-        @if(!$session->trashed())
+        {{-- Annuler : restreint au super_admin si la date est passée --}}
+        @if(!$session->trashed() && (!$session->date_end->isPast() || auth()->user()->role === 'super_admin'))
         <form action="{{ route('assignments.destroy', $session) }}" method="POST" class="d-inline">
           @csrf @method('DELETE')
           <button class="btn btn-xs btn-outline-danger btn-sm" onclick="return confirm('Annuler cette session ?')">
@@ -330,7 +353,8 @@
           </button>
         </form>
         @endif
-        @if(in_array(auth()->user()->role, ['super_admin','facility_manager']))
+        {{-- Restaurer / Supprimer définitivement : super_admin uniquement --}}
+        @if(auth()->user()->role === 'super_admin')
           @if($session->trashed())
           <form action="{{ url('/assignments/'.$session->id.'/restore') }}" method="POST" class="d-inline">
             @csrf <button class="btn btn-xs btn-warning btn-sm">
@@ -345,7 +369,8 @@
             </button>
           </form>
         @endif
-      </div>
+        </div>{{-- /d-flex gap-2 --}}
+      </div>{{-- /bg-light --}}
 
       {{-- Tabs --}}
       <ul class="nav nav-tabs px-3 pt-2" id="tab-nav-{{ $session->id }}">
@@ -430,7 +455,7 @@
               <tbody>
                 @foreach($matrixDates as $mDate)
                 @php
-                  $dayAssignments = $slpIdx[$mDate] ?? collect();
+                  $dayAssignments = $slpIdx->get($mDate, collect());
                   $dayIncidents   = $sessionIncidents->filter(fn($i) => $i->incident_date->format('Y-m-d') === $mDate);
                 @endphp
                 <tr>

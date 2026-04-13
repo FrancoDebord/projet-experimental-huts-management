@@ -27,6 +27,9 @@
 .hut-selector.selected { border-color:var(--airid-red); background:rgba(204,0,0,0.06); }
 .hut-selector.selected .hut-num { color:var(--airid-red); }
 .hut-selector.unavailable { opacity:.4; pointer-events:none; background:#f8f8f8; }
+.hut-selector.occupied { border-color:#ffc107; background:rgba(255,193,7,0.08); cursor:not-allowed; }
+.hut-selector.occupied:hover { border-color:#ffc107; transform:none; }
+.hut-selector.occupied .hut-num { color:#856404; }
 .hut-check { display:none; }
 .hut-num { font-weight:700; font-size:1.1rem; }
 
@@ -127,18 +130,26 @@
             @foreach($site->huts->sortBy('number') as $hut)
             @php
               $available = $hut->status !== 'damaged' && $hut->status !== 'abandoned';
-              $cur = $hut->currentUsage();
+              $cur = $hut->projectUsages->first(); // uses eager-loaded current usages
+              $isOccupied = $available && $cur !== null;
             @endphp
             <div class="col-4 col-sm-3 col-md-2 col-lg-2">
-              <div class="hut-selector {{ !$available ? 'unavailable' : '' }} {{ $hut->status }}"
+              <div class="hut-selector {{ !$available ? 'unavailable' : '' }} {{ $isOccupied ? 'occupied' : '' }}"
                    data-hut-id="{{ $hut->id }}"
                    data-site="{{ $site->id }}"
-                   title="{{ !$available ? $hut->status_label : 'Cliquer pour sélectionner' }}">
+                   data-occupied="{{ $isOccupied ? '1' : '0' }}"
+                   @if($isOccupied)
+                   data-project="{{ $cur->project?->project_code ?? '?' }}"
+                   data-free-date="{{ \Carbon\Carbon::parse($cur->date_end)->format('d/m/Y') }}"
+                   @endif
+                   title="{{ !$available ? $hut->status_label : ($isOccupied ? 'Occupée — '.($cur->project?->project_code ?? '?') : 'Cliquer pour sélectionner') }}">
                 <input type="checkbox" name="hut_ids[]" value="{{ $hut->id }}" class="hut-check" id="hut-{{ $hut->id }}">
                 <div class="hut-num">{{ $hut->number }}</div>
                 {!! $hut->status_badge !!}
-                @if($cur)
-                  <div style="font-size:.62rem;color:var(--airid-red)">{{ $cur->project?->project_code }}</div>
+                @if($isOccupied)
+                  <div style="font-size:.62rem;color:#856404;font-weight:600">
+                    <i class="fa-solid fa-lock" style="font-size:.55rem"></i> {{ $cur->project?->project_code }}
+                  </div>
                 @endif
               </div>
             </div>
@@ -152,6 +163,10 @@
       <div class="alert alert-light border mt-3" id="selectionSummary">
         <i class="fa-solid fa-circle-info me-2 text-primary"></i>
         Aucune case sélectionnée. Cliquez sur les cases pour les sélectionner.
+      </div>
+      {{-- Occupied hut warning (shown on click) --}}
+      <div class="alert alert-warning py-2 mt-2 d-none" id="occupiedMsg">
+        <i class="fa-solid fa-lock me-2"></i><span id="occupiedMsgText"></span>
       </div>
     </div>
     <div class="card-footer d-flex justify-content-end">
@@ -328,7 +343,7 @@ function updateSelection() {
 document.querySelectorAll('.select-all-site').forEach(btn => {
   btn.addEventListener('click', function() {
     const siteId = this.dataset.site;
-    document.querySelectorAll(`.hut-selector[data-site="${siteId}"]:not(.unavailable)`).forEach(el => {
+    document.querySelectorAll(`.hut-selector[data-site="${siteId}"]:not(.unavailable):not(.occupied)`).forEach(el => {
       el.classList.add('selected');
       el.querySelector('.hut-check').checked = true;
     });
@@ -473,8 +488,22 @@ function submitForm(withSleepers) {
 }
 
 // ── Hut card click handler ──────────────────────────────────────────────────
+let occupiedMsgTimer = null;
 document.querySelectorAll('.hut-selector:not(.unavailable)').forEach(el => {
-  el.addEventListener('click', () => toggleHut(el));
+  el.addEventListener('click', () => {
+    if (el.dataset.occupied === '1') {
+      const project  = el.dataset.project  || '?';
+      const freeDate = el.dataset.freeDate || '?';
+      const msgEl  = document.getElementById('occupiedMsg');
+      const textEl = document.getElementById('occupiedMsgText');
+      textEl.innerHTML = `Cette case est déjà affectée au projet <strong>${project}</strong> et sera libérée le <strong>${freeDate}</strong>.`;
+      msgEl.classList.remove('d-none');
+      clearTimeout(occupiedMsgTimer);
+      occupiedMsgTimer = setTimeout(() => msgEl.classList.add('d-none'), 6000);
+      return;
+    }
+    toggleHut(el);
+  });
 });
 
 // Init Select2
