@@ -62,8 +62,9 @@ class AssignmentController extends Controller
             'notes'        => 'nullable|string',
             'hut_ids'      => 'required|array|min:1',
             'hut_ids.*'    => 'integer|exists:exp_huts_huts,id',
-            // Sleeper assignments: sleepers[date][hut_id] = sleeper_id
+            // sleepers[date][hut_id] = dormeur_number (1, 2, 3…)
             'sleepers'     => 'nullable|array',
+            'sleepers.*.*' => 'nullable|integer|min:1',
         ]);
 
         $project = ProProject::findOrFail($validated['project_id']);
@@ -124,13 +125,19 @@ class AssignmentController extends Controller
             }
 
             // 3. Save sleeper assignments if provided
+            // The submitted value is a dormeur NUMBER (1, 2, 3…), not a DB id.
+            // We find-or-create a Sleeper record for each number automatically.
             if (!empty($validated['sleepers'])) {
                 foreach ($validated['sleepers'] as $date => $hutSleepers) {
-                    foreach ($hutSleepers as $hutId => $sleeperId) {
-                        if (!$sleeperId) continue;
+                    foreach ($hutSleepers as $hutId => $dormeurNum) {
+                        if (!$dormeurNum) continue;
+                        $sleeper = Sleeper::firstOrCreate(
+                            ['code' => 'D' . $dormeurNum],
+                            ['name' => 'Dormeur ' . $dormeurNum, 'active' => true]
+                        );
                         SleeperAssignment::updateOrCreate(
                             ['session_id' => $session->id, 'hut_id' => $hutId, 'assignment_date' => $date],
-                            ['sleeper_id' => $sleeperId]
+                            ['sleeper_id' => $sleeper->id]
                         );
                     }
                 }
@@ -301,23 +308,27 @@ class AssignmentController extends Controller
     {
         $validated = $request->validate([
             'sleepers'        => 'required|array',
-            'sleepers.*.*'    => 'nullable|integer|exists:exp_huts_sleepers,id',
+            'sleepers.*.*'    => 'nullable|integer|min:1',
         ]);
 
         DB::transaction(function () use ($validated, $assignment) {
             foreach ($validated['sleepers'] as $date => $hutSleepers) {
-                foreach ($hutSleepers as $hutId => $sleeperId) {
-                    if (!$sleeperId) {
+                foreach ($hutSleepers as $hutId => $dormeurNum) {
+                    if (!$dormeurNum) {
                         SleeperAssignment::where([
-                            'session_id' => $assignment->id,
-                            'hut_id' => $hutId,
+                            'session_id'      => $assignment->id,
+                            'hut_id'          => $hutId,
                             'assignment_date' => $date,
                         ])->delete();
                         continue;
                     }
+                    $sleeper = Sleeper::firstOrCreate(
+                        ['code' => 'D' . $dormeurNum],
+                        ['name' => 'Dormeur ' . $dormeurNum, 'active' => true]
+                    );
                     SleeperAssignment::updateOrCreate(
                         ['session_id' => $assignment->id, 'hut_id' => $hutId, 'assignment_date' => $date],
-                        ['sleeper_id' => $sleeperId]
+                        ['sleeper_id' => $sleeper->id]
                     );
                 }
             }

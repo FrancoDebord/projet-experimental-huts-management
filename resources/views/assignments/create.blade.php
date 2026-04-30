@@ -171,7 +171,7 @@
     </div>
     <div class="card-footer d-flex justify-content-end">
       <button type="button" class="btn btn-primary px-4" id="nextStep1"
-              onclick="goToStep(2)" disabled>
+              onclick="goToStep(2)">
         Suivant <i class="fa-solid fa-arrow-right ms-1"></i>
       </button>
     </div>
@@ -282,68 +282,91 @@
 
 @push('scripts')
 <script>
-const sleepersData = {!! json_encode($sleepers->map(fn($s) => ['id' => $s->id, 'code' => $s->code, 'name' => $s->name])) !!};
+let selectedHuts  = []; // [{id, hutId, label}]
+let selectedDates = []; // ['YYYY-MM-DD', ...]
 
-let selectedHuts = []; // [{id, name, number}]
-let selectedDates = [];
+// ── Utilitaire dates (sans décalage UTC) ────────────────────────────────────
+function pad(n) { return String(n).padStart(2, '0'); }
 
-// ── Stepper navigation ──────────────────────────────────────────────────────
+function localDateStr(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function buildDateRange(start, end) {
+  const dates = [];
+  const [sy, sm, sd] = start.split('-').map(Number);
+  const [ey, em, ed] = end.split('-').map(Number);
+  let cur = new Date(sy, sm - 1, sd);
+  const endD = new Date(ey, em - 1, ed);
+  while (cur <= endD) {
+    dates.push(localDateStr(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+function formatDate(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// ── Dormeurs auto — N dormeurs = nombre de cases sélectionnées ───────────────
+function buildDormeurs(n) {
+  return Array.from({ length: n }, (_, i) => ({ num: i + 1, label: `Dormeur ${i + 1}` }));
+}
+
+// ── Stepper navigation ───────────────────────────────────────────────────────
 function goToStep(n) {
-  if (n === 2) {
-    if (!validateStep1()) return;
-  }
-  if (n === 3) {
-    if (!validateStep2()) return;
-    generateMatrix();
-  }
-  [1,2,3].forEach(i => {
+  if (n === 2 && !validateStep1()) return;
+  if (n === 3 && !validateStep2()) return;
+  if (n === 3) generateMatrix();
+
+  [1, 2, 3].forEach(i => {
     document.getElementById('step' + i).classList.add('d-none');
     const ind = document.getElementById('step-indicator-' + i);
-    ind.classList.remove('active','done');
+    ind.classList.remove('active', 'done');
     if (i < n) ind.classList.add('done');
     if (i === n) ind.classList.add('active');
   });
   document.getElementById('step' + n).classList.remove('d-none');
-  window.scrollTo({top: 0, behavior: 'smooth'});
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ── Step 1: Hut selection ───────────────────────────────────────────────────
+// ── Step 1 : sélection des cases ────────────────────────────────────────────
 function toggleHut(el) {
   el.classList.toggle('selected');
-  const cb = el.querySelector('.hut-check');
-  cb.checked = el.classList.contains('selected');
+  el.querySelector('.hut-check').checked = el.classList.contains('selected');
   updateSelection();
 }
 
 function updateSelection() {
   selectedHuts = [];
   document.querySelectorAll('.hut-selector.selected').forEach(el => {
-    const cb = el.querySelector('.hut-check');
-    selectedHuts.push({ id: cb.value, name: el.closest('[data-hut-id]')?.dataset?.hutId, num: el.querySelector('.hut-num').textContent.trim() });
+    selectedHuts.push({
+      id:    el.querySelector('.hut-check').value,
+      label: el.querySelector('.hut-num').textContent.trim()
+    });
   });
 
-  // Update site badges
-  document.querySelectorAll('.site-filter-tab, [id^="count-"]').forEach(badge => {
-    const siteId = badge.id.replace('count-','');
-    const cnt = document.querySelectorAll(`.hut-selector.selected[data-site="${siteId}"]`).length;
-    badge.textContent = cnt;
+  // Badges par site
+  document.querySelectorAll('[id^="count-"]').forEach(badge => {
+    const siteId = badge.id.replace('count-', '');
+    badge.textContent = document.querySelectorAll(`.hut-selector.selected[data-site="${siteId}"]`).length;
   });
 
   const total = selectedHuts.length;
   const summary = document.getElementById('selectionSummary');
-  if (total === 0) {
-    summary.innerHTML = '<i class="fa-solid fa-circle-info me-2 text-primary"></i>Aucune case sélectionnée.';
-  } else {
-    summary.innerHTML = `<i class="fa-solid fa-check-circle me-2 text-success"></i><strong>${total} case(s) sélectionnée(s)</strong>`;
-  }
+  summary.innerHTML = total === 0
+    ? '<i class="fa-solid fa-circle-info me-2 text-primary"></i>Aucune case sélectionnée.'
+    : `<i class="fa-solid fa-check-circle me-2 text-success"></i><strong>${total} case(s) sélectionnée(s)</strong> — ${total} dormeur(s) seront générés automatiquement.`;
+
   document.getElementById('nextStep1').disabled = total === 0;
 }
 
-// Select / deselect all per site
+// Tout sélectionner / désélectionner par site
 document.querySelectorAll('.select-all-site').forEach(btn => {
-  btn.addEventListener('click', function() {
-    const siteId = this.dataset.site;
-    document.querySelectorAll(`.hut-selector[data-site="${siteId}"]:not(.unavailable):not(.occupied)`).forEach(el => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll(`.hut-selector[data-site="${this.dataset.site}"]:not(.unavailable):not(.occupied)`).forEach(el => {
       el.classList.add('selected');
       el.querySelector('.hut-check').checked = true;
     });
@@ -351,9 +374,8 @@ document.querySelectorAll('.select-all-site').forEach(btn => {
   });
 });
 document.querySelectorAll('.deselect-all-site').forEach(btn => {
-  btn.addEventListener('click', function() {
-    const siteId = this.dataset.site;
-    document.querySelectorAll(`.hut-selector[data-site="${siteId}"]`).forEach(el => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll(`.hut-selector[data-site="${this.dataset.site}"]`).forEach(el => {
       el.classList.remove('selected');
       el.querySelector('.hut-check').checked = false;
     });
@@ -363,19 +385,18 @@ document.querySelectorAll('.deselect-all-site').forEach(btn => {
 
 function validateStep1() {
   @if(!$project)
-  const projSel = document.getElementById('projectSelect');
-  if (!projSel.value) { alert('Veuillez choisir un projet.'); return false; }
+  if (!document.getElementById('projectSelect')?.value) { alert('Veuillez choisir un projet.'); return false; }
   @endif
   if (selectedHuts.length === 0) { alert('Veuillez sélectionner au moins une case.'); return false; }
   return true;
 }
 
-// ── Step 2: Period ──────────────────────────────────────────────────────────
+// ── Step 2 : période ────────────────────────────────────────────────────────
 function validateStep2() {
   const s = document.getElementById('dateStart').value;
   const e = document.getElementById('dateEnd').value;
   if (!s || !e) { alert('Veuillez renseigner les dates de début et de fin.'); return false; }
-  if (s > e) { alert('La date de fin doit être après la date de début.'); return false; }
+  if (s > e)    { alert('La date de fin doit être après la date de début.'); return false; }
   return true;
 }
 
@@ -383,48 +404,28 @@ function updateMatrix() {
   const s = document.getElementById('dateStart').value;
   const e = document.getElementById('dateEnd').value;
   if (s && e && s <= e) {
-    const start = new Date(s), end = new Date(e);
-    const days = Math.floor((end - start) / 86400000) + 1;
+    const dates = buildDateRange(s, e);
     document.getElementById('durationInfo').style.display = '';
-    document.getElementById('durationDisplay').textContent = `${days} jour(s) — du ${formatDate(s)} au ${formatDate(e)}`;
-
-    // Build dates array
-    selectedDates = [];
-    for (let d = new Date(s); d <= end; d.setDate(d.getDate()+1)) {
-      selectedDates.push(d.toISOString().split('T')[0]);
-    }
+    document.getElementById('durationDisplay').textContent =
+      `${dates.length} jour(s) — du ${formatDate(s)} au ${formatDate(e)}`;
+    selectedDates = dates;
   }
 }
 
-function formatDate(d) {
-  const [y,m,day] = d.split('-');
-  return `${day}/${m}/${y}`;
-}
-
-// ── Step 3: Matrix generation ───────────────────────────────────────────────
+// ── Step 3 : génération du tableau ──────────────────────────────────────────
 function generateMatrix() {
   const container = document.getElementById('matrixContainer');
 
-  // Lire les cases directement depuis le DOM (source de vérité)
+  // Source de vérité : DOM
   const huts = [];
   document.querySelectorAll('.hut-selector.selected').forEach(el => {
-    huts.push({
-      id:    el.querySelector('.hut-check').value,
-      label: el.querySelector('.hut-num').textContent.trim()
-    });
+    huts.push({ id: el.querySelector('.hut-check').value, label: el.querySelector('.hut-num').textContent.trim() });
   });
 
-  // Lire les dates directement depuis les inputs (source de vérité)
   const s = document.getElementById('dateStart').value;
   const e = document.getElementById('dateEnd').value;
-  const dates = [];
-  if (s && e && s <= e) {
-    for (let d = new Date(s + 'T00:00:00'); d <= new Date(e + 'T00:00:00'); d.setDate(d.getDate() + 1)) {
-      dates.push(d.toISOString().split('T')[0]);
-    }
-  }
+  const dates = (s && e && s <= e) ? buildDateRange(s, e) : [];
 
-  // Mettre à jour les caches globaux
   selectedHuts  = huts;
   selectedDates = dates;
 
@@ -433,25 +434,25 @@ function generateMatrix() {
     return;
   }
 
+  // Dormeurs générés automatiquement selon le nombre de cases
+  const dormeurs = buildDormeurs(huts.length);
+
   let html = `<table class="table table-bordered table-sm matrix-table">
-  <thead>
-    <tr>
+    <thead><tr>
       <th class="date-col" style="background:#1A1A1A;color:#fff">Date</th>`;
-  huts.forEach(h => {
-    html += `<th class="hut-col text-center">Case ${h.label}</th>`;
-  });
+  huts.forEach(h => { html += `<th class="hut-col text-center">Case ${h.label}</th>`; });
   html += `</tr></thead><tbody>`;
 
   dates.forEach((date, di) => {
-    html += `<tr>
-      <td class="date-col" style="background:#1A1A1A;color:#fff">${formatDate(date)}</td>`;
+    html += `<tr><td class="date-col" style="background:#1A1A1A;color:#fff">${formatDate(date)}</td>`;
     huts.forEach((h, hi) => {
       html += `<td class="hut-col">
-        <select name="sleepers[${date}][${h.id}]" class="form-select form-select-sm sleeper-select"
-                data-date="${date}" data-hut="${h.id}" data-di="${di}" data-hi="${hi}">
+        <select name="sleepers[${date}][${h.id}]"
+                class="form-select form-select-sm sleeper-select"
+                data-di="${di}" data-hi="${hi}" data-n="${huts.length}">
           <option value="">—</option>`;
-      sleepersData.forEach(s => {
-        html += `<option value="${s.id}">${s.code} – ${s.name}</option>`;
+      dormeurs.forEach(d => {
+        html += `<option value="${d.num}">${d.label}</option>`;
       });
       html += `</select></td>`;
     });
@@ -462,17 +463,15 @@ function generateMatrix() {
   container.innerHTML = html;
 }
 
-// ── Auto-rotation algorithm ─────────────────────────────────────────────────
+// ── Auto-rotation ────────────────────────────────────────────────────────────
 function autoRotate() {
-  if (!sleepersData.length) { alert('Aucun dormeur enregistré. Ajoutez des dormeurs dans Gestion > Dormeurs.'); return; }
   const selects = document.querySelectorAll('.sleeper-select');
-  if (!selects.length) { alert('Générez le tableau d\'abord (revenez à l\'étape 2 et re-saisissez les dates).'); return; }
-
+  if (!selects.length) { alert('Le tableau n\'est pas encore généré.'); return; }
   selects.forEach(sel => {
     const di = parseInt(sel.dataset.di);
     const hi = parseInt(sel.dataset.hi);
-    const idx = (di + hi) % sleepersData.length;
-    sel.value = sleepersData[idx].id;
+    const n  = parseInt(sel.dataset.n);
+    sel.value = ((di + hi) % n) + 1; // dormeur 1-based
   });
 }
 
@@ -487,27 +486,26 @@ function submitForm(withSleepers) {
   document.getElementById('wizardForm').submit();
 }
 
-// ── Hut card click handler ──────────────────────────────────────────────────
+// ── Clic sur les cartes de cases (délégation) ────────────────────────────────
 let occupiedMsgTimer = null;
-document.querySelectorAll('.hut-selector:not(.unavailable)').forEach(el => {
-  el.addEventListener('click', () => {
-    if (el.dataset.occupied === '1') {
-      const project  = el.dataset.project  || '?';
-      const freeDate = el.dataset.freeDate || '?';
-      const msgEl  = document.getElementById('occupiedMsg');
-      const textEl = document.getElementById('occupiedMsgText');
-      textEl.innerHTML = `Cette case est déjà affectée au projet <strong>${project}</strong> et sera libérée le <strong>${freeDate}</strong>.`;
-      msgEl.classList.remove('d-none');
-      clearTimeout(occupiedMsgTimer);
-      occupiedMsgTimer = setTimeout(() => msgEl.classList.add('d-none'), 6000);
-      return;
-    }
-    toggleHut(el);
-  });
+document.querySelector('.tab-content').addEventListener('click', function (e) {
+  const card = e.target.closest('.hut-selector');
+  if (!card || card.classList.contains('unavailable')) return;
+
+  if (card.dataset.occupied === '1') {
+    document.getElementById('occupiedMsgText').innerHTML =
+      `Cette case est déjà affectée au projet <strong>${card.dataset.project || '?'}</strong> et sera libérée le <strong>${card.dataset.freeDate || '?'}</strong>.`;
+    document.getElementById('occupiedMsg').classList.remove('d-none');
+    clearTimeout(occupiedMsgTimer);
+    occupiedMsgTimer = setTimeout(() => document.getElementById('occupiedMsg').classList.add('d-none'), 6000);
+    return;
+  }
+  toggleHut(card);
 });
 
-// Init Select2
-$(document).ready(function() {
+// Init
+document.getElementById('nextStep1').disabled = true;
+$(document).ready(function () {
   $('#projectSelect').select2({ theme: 'bootstrap-5', placeholder: '— Choisir un projet —' });
 });
 </script>

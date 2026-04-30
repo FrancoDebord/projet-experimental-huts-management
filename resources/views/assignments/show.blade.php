@@ -169,17 +169,24 @@
               @php
                 $assigned = $assignments->get($date)?->firstWhere('hut_id', $hut->id);
               @endphp
+              @php
+                // Numéro du dormeur assigné (ex: code "D2" → 2), ou null
+                $assignedNum = $assigned?->sleeper?->code
+                    ? (int) ltrim($assigned->sleeper->code, 'D')
+                    : null;
+              @endphp
               <td>
                 <select name="sleepers[{{ $date }}][{{ $hut->id }}]"
                         class="form-select form-select-sm sleeper-sel"
                         data-di="{{ array_search($date, $dates) }}"
-                        data-hi="{{ $huts->values()->search(fn($h) => $h->id === $hut->id) }}">
+                        data-hi="{{ $huts->values()->search(fn($h) => $h->id === $hut->id) }}"
+                        data-n="{{ $huts->count() }}">
                   <option value="">—</option>
-                  @foreach($sleepers as $sl)
-                  <option value="{{ $sl->id }}" {{ $assigned?->sleeper_id === $sl->id ? 'selected' : '' }}>
-                    {{ $sl->code }} – {{ $sl->name }}
+                  @for($n = 1; $n <= $huts->count(); $n++)
+                  <option value="{{ $n }}" {{ $assignedNum === $n ? 'selected' : '' }}>
+                    Dormeur {{ $n }}
                   </option>
-                  @endforeach
+                  @endfor
                 </select>
               </td>
               @endforeach
@@ -262,15 +269,14 @@
 
 @push('scripts')
 <script>
-const sleepersData = {!! json_encode($sleepers->map(fn($s) => ['id' => $s->id, 'code' => $s->code])) !!};
-
 function autoFill() {
-  if (!sleepersData.length) { alert('Aucun dormeur disponible.'); return; }
-  document.querySelectorAll('.sleeper-sel').forEach(sel => {
+  const selects = document.querySelectorAll('.sleeper-sel');
+  if (!selects.length) { alert('Aucun tableau à remplir.'); return; }
+  selects.forEach(sel => {
     const di = parseInt(sel.dataset.di);
     const hi = parseInt(sel.dataset.hi);
-    const idx = (di + hi) % sleepersData.length;
-    sel.value = sleepersData[idx].id;
+    const n  = parseInt(sel.dataset.n) || 1;
+    sel.value = ((di + hi) % n) + 1; // dormeur 1-based
   });
 }
 
